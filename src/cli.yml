@@ -1,0 +1,14 @@
+# The name used by the application is the name of the Cargo crate
+# The name defined below is just a dummy value
+name: ""
+args:
+  - verbose:
+      short: v
+      help: Enable verbose messages in output
+subcommands:
+  - install:
+      about: Installs a Godot version
+      args:
+        - version:
+            help: The version to install (use a Git reference such as `master` or `3.0`)
+            required: true

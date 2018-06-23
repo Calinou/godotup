@@ -1,0 +1,19 @@
+[package]
+name = "godotup"
+description = "Install and manage multiple Godot Engine versions"
+version = "0.1.0"
+license = "MIT/Apache-2.0"
+authors = ["Hugo Locurcio <hugo.locurcio@hugo.pro>"]
+categories = ["command-line-utilities", "development-tools", "game-engines"]
+keywords = ["godot", "godot engine", "godot build", "godot builder", "godot nightly"]
+repository = "https://github.com/Calinou/godotup"
+readme = "README.md"
+
+[dependencies]
+ansi_term = "0.10.2"
+clap = {version = "2.31.2", features = ["yaml"]}
+reqwest = "0.8.6"
+zip = "0.4"
+
+[profile.release]
+lto = true
