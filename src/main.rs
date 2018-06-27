@@ -23,13 +23,16 @@
 extern crate ansi_term;
 #[macro_use]
 extern crate clap;
+extern crate directories;
 extern crate reqwest;
+extern crate tempfile;
 extern crate zip;
 
 use ansi_term::Colour::{Cyan, Green, Red};
-use std::{io, fs};
 use clap::{App, AppSettings};
+use directories::ProjectDirs;
 use reqwest::{Client, StatusCode};
+use std::{io, fs};
 
 fn main() {
     let yaml = load_yaml!("cli.yml");
@@ -41,14 +44,44 @@ fn main() {
         .setting(AppSettings::ArgRequiredElseHelp)
         .get_matches();
 
+    let project_dir = ProjectDirs::from("", "", "godotup");
+    let _data_dir = project_dir.data_local_dir();
+
     if let Some(matches) = matches.subcommand_matches("install") {
         let reference = matches.value_of("version").unwrap();
         println!("Downloading Godot {} source code...", Cyan.bold().paint(reference));
 
         let client = Client::new();
-        let response = client.get(
+        let mut response = client.get(
             &format!("https://github.com/godotengine/godot/archive/{}.zip", reference)
         ).send().unwrap();
+
+        let mut tmpfile = tempfile::tempfile().unwrap();
+        let _file = response.copy_to(&mut tmpfile);
+
+        println!("Extracting ZIP archive...");
+
+        let mut archive = zip::ZipArchive::new(tmpfile).unwrap();
+
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).unwrap();
+            let out_path = file.sanitized_name();
+
+            if (&*file.name()).ends_with('/') {
+                // File is a directory
+                fs::create_dir_all(&out_path).unwrap();
+            } else {
+                // File is a file
+                if let Some(p) = out_path.parent() {
+                    if !p.exists() {
+                        fs::create_dir_all(&p).unwrap();
+                    }
+                }
+
+                let mut out_file = fs::File::create(&out_path).unwrap();
+                io::copy(&mut file, &mut out_file).unwrap();
+            }
+        }
 
         match response.status() {
             StatusCode::Ok => println!("{}", Green.bold().paint("Success!")),
