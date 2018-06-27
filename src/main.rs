@@ -24,17 +24,24 @@ extern crate ansi_term;
 #[macro_use]
 extern crate clap;
 extern crate directories;
+#[macro_use]
+extern crate log;
 extern crate reqwest;
 extern crate tempfile;
 extern crate zip;
 
-use ansi_term::Colour::{Cyan, Green, Red};
+use ansi_term::Colour::White;
 use clap::{App, AppSettings};
 use directories::ProjectDirs;
 use reqwest::{Client, StatusCode};
-use std::{io, fs};
+use std::{fs, io, process};
+
+mod logger;
 
 fn main() {
+    let logger = logger::init();
+    assert!(logger.is_ok());
+
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml)
         .name(crate_name!())
@@ -49,18 +56,32 @@ fn main() {
 
     if let Some(matches) = matches.subcommand_matches("install") {
         let reference = matches.value_of("version").unwrap();
-        println!("Downloading Godot {} source code...", Cyan.bold().paint(reference));
+        info!(
+            "Downloading Godot {} source code...",
+            White.bold().paint(reference)
+        );
 
         let client = Client::new();
-        let mut response = client.get(
-            &format!("https://github.com/godotengine/godot/archive/{}.zip", reference)
-        ).send().unwrap();
+        let mut response = client
+            .get(&format!(
+                "https://github.com/godotengine/godot/archive/{}.zip",
+                reference
+            ))
+            .send()
+            .unwrap();
 
         let mut tmpfile = tempfile::tempfile().unwrap();
         let _file = response.copy_to(&mut tmpfile);
 
-        println!("Extracting ZIP archive...");
+        match response.status() {
+            StatusCode::Ok => info!("Download completed."),
+            status => {
+                error!("Download failed ({:?})", status);
+                process::exit(1);
+            }
+        }
 
+        info!("Extracting ZIP archive...");
         let mut archive = zip::ZipArchive::new(tmpfile).unwrap();
 
         for i in 0..archive.len() {
@@ -81,11 +102,6 @@ fn main() {
                 let mut out_file = fs::File::create(&out_path).unwrap();
                 io::copy(&mut file, &mut out_file).unwrap();
             }
-        }
-
-        match response.status() {
-            StatusCode::Ok => println!("{}", Green.bold().paint("Success!")),
-            status => println!("{} {:?}", Red.bold().paint("Error:"), status),
         }
     }
 }
