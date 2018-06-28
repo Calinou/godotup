@@ -34,7 +34,7 @@ use ansi_term::Colour::White;
 use clap::{App, AppSettings};
 use directories::ProjectDirs;
 use reqwest::{Client, StatusCode};
-use std::{fs, io, process};
+use std::{env, fs, io, process};
 
 mod logger;
 
@@ -52,7 +52,8 @@ fn main() {
         .get_matches();
 
     let project_dir = ProjectDirs::from("", "", "godotup");
-    let _data_dir = project_dir.data_local_dir();
+    let data_dir = project_dir.data_local_dir();
+    env::set_current_dir(data_dir).unwrap();
 
     if let Some(matches) = matches.subcommand_matches("install") {
         let reference = matches.value_of("version").unwrap();
@@ -71,7 +72,7 @@ fn main() {
             .unwrap();
 
         let mut tmpfile = tempfile::tempfile().unwrap();
-        let _file = response.copy_to(&mut tmpfile);
+        response.copy_to(&mut tmpfile).unwrap();
 
         match response.status() {
             StatusCode::Ok => info!("Download completed."),
